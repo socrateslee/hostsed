@@ -2,7 +2,7 @@
 
 sdict = {
     'name': 'hostsed',
-    'version': "0.1.0",
+    'version': "0.1.1",
     'packages': ['hosts'],
     'zip_safe': False,
     'author': 'lichun',

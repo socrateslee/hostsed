@@ -29,12 +29,13 @@ def is_valid_ip_address(ip):
 
 def parse_line(line):
     pos = line.find("#")
-    new_line = line[:pos].strip()
+    new_line = line[:pos].strip() if pos != -1 else line.strip()
+    comment = line[pos:] if pos != -1 else ''
     if new_line:
         parts = map(lambda x: x.strip(), new_line.split())
-        return (line, parts)
+        return (line, parts, comment)
     else:
-        return (line, None)
+        return (line, None, comment)
         
 
 class HostEditor(object):
@@ -48,18 +49,18 @@ class HostEditor(object):
         '''
         ret = []
         added = False
-        for (line, parts) in self.entries:
+        for (line, parts, comment) in self.entries:
             if parts and parts[0] == ip and not added:
                 for hostname in hostnames:
                     if hostname not in parts[1:]:
                         parts.append(hostname)
-                line = ' '.join(['\t'.join(parts), line[line.find('#'):]])
+                line = ' '.join(['\t'.join(parts), comment])
                 added = True
-            ret.append((line, parts))
+            ret.append((line, parts, comment))
         if not added:
             parts = [ip] + list(hostnames)
             line = '\t'.join(parts)
-            ret.append((line, parts))
+            ret.append((line, parts, comment))
         self.entries = ret
 
     def delete(self, ip, hostname):
@@ -69,13 +70,13 @@ class HostEditor(object):
         if not is_valid_ip_address(ip):
             raise Exception("Ip %s is not valid." % ip)
         ret = []
-        for (line, parts) in self.entries:
+        for (line, parts, comment) in self.entries:
             if parts and parts[0] == ip:
                 parts = filter(lambda x: x != hostname, parts)
                 if not parts[1:]:
                     continue
-                line = ' '.join(['\t'.join(parts), line[line.find('#'):]])
-            ret.append((line, parts))
+                line = ' '.join(['\t'.join(parts), comment])
+            ret.append((line, parts, comment))
         self.entries = ret
 
     def _parse(self):
