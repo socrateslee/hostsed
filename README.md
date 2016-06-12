@@ -2,6 +2,11 @@
 
 hostsed is a simple python tool for editing hosts file(/etc/hosts), you can add or delete a DNS entry via command line shell(e.x. bash).
 
+Install:
+
+```
+sudo pip install hostsed
+```
 
 Usage:
 
