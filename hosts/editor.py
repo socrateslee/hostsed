@@ -32,7 +32,7 @@ def parse_line(line):
     new_line = line[:pos].strip() if pos != -1 else line.strip()
     comment = line[pos:] if pos != -1 else ''
     if new_line:
-        parts = map(lambda x: x.strip(), new_line.split())
+        parts = list(map(lambda x: x.strip(), new_line.split()))
         return (line, parts, comment)
     else:
         return (line, None, comment)
@@ -72,7 +72,7 @@ class HostEditor(object):
         ret = []
         for (line, parts, comment) in self.entries:
             if parts and parts[0] == ip:
-                parts = filter(lambda x: x != hostname, parts)
+                parts = list(filter(lambda x: x != hostname, parts))
                 if not parts[1:]:
                     continue
                 line = ' '.join(['\t'.join(parts), comment])
@@ -108,3 +108,7 @@ def main():
         he.delete(sys.argv[2], sys.argv[3])
         he.write()
     he.output()
+
+
+if __name__ == '__main__':
+    main()
