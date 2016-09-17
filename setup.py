@@ -1,12 +1,22 @@
 #!/usr/bin/env python
 
+long_descriptoin = ""
+
+try:
+    import pypandoc
+    long_description = pypandoc.convert('README.md', 'rst')
+except:
+    pass
+
 sdict = {
     'name': 'hostsed',
-    'version': "0.1.1",
+    'version': "0.1.2",
     'packages': ['hosts'],
     'zip_safe': False,
     'author': 'lichun',
+    'url': 'https://github.com/socrateslee/hostsed',
     'scripts': ['hostsed'],
+    'long_description': long_description,
     'classifiers': [
         'Environment :: Console',
         'Intended Audience :: Developers',
