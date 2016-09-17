@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-long_descriptoin = ""
+long_description = ""
 
 try:
     import pypandoc
@@ -10,7 +10,7 @@ except:
 
 sdict = {
     'name': 'hostsed',
-    'version': "0.1.2",
+    'version': "0.1.3",
     'packages': ['hosts'],
     'zip_safe': False,
     'author': 'lichun',
