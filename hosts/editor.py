@@ -47,6 +47,8 @@ class HostEditor(object):
         '''
         Add an entry to hosts file.
         '''
+        if not self.entries:
+            return
         ret = []
         added = False
         for (line, parts, comment) in self.entries:
