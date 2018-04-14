@@ -19,6 +19,11 @@ sudo hostsed add 192.168.1.1 gateway
 sudo hostsed add 172.17.0.5 mongo-store-1 mysql-02
 
 # Delete an entry
-sudo hosted del <ip address> <hostname>
+sudo hostsed del <ip address> <hostname>
+
+Example:
 hosted remove 192.168.1.1 gateway
+
+# Get the ip address of a docker container
+sudo hostsed docker <docker-container-name>
 ```
