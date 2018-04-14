@@ -4,6 +4,8 @@ as /etc/hosts.
 '''
 import os
 import sys
+import json
+import subprocess
 import socket
 import argparse
 
@@ -51,6 +53,8 @@ class HostEditor(object):
             return
         ret = []
         added = False
+        if not self.entries:
+            return
         for (line, parts, comment) in self.entries:
             if parts and parts[0] == ip and not added:
                 for hostname in hostnames:
@@ -99,17 +103,33 @@ class HostEditor(object):
         self.output(fd=fd)
         fd.close()
 
+    def output_docker_ip(self, container):
+        proc = subprocess.Popen("docker inspect %s" % container,
+                                shell=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate()
+        if proc.returncode == 0:
+            ret = json.loads(stdout.decode('utf-8'))
+            ip = ret[0]['NetworkSettings']['IPAddress']
+            sys.stdout.write(ip)
+
 
 def main():
     he = HostEditor()
     if len(sys.argv) >= 4 and sys.argv[1] == 'add':
         he.add(sys.argv[2], *sys.argv[3:])
         he.write()
+        he.output()
     elif len(sys.argv) == 4 and sys.argv[1] in ('rm', 'remove',
                                                 'del', 'delete'):
         he.delete(sys.argv[2], sys.argv[3])
         he.write()
-    he.output()
+        he.output()
+    elif len(sys.argv) == 3 and sys.argv[1] == 'docker':
+        he.output_docker_ip(sys.argv[2])
+    else:
+        he.output()
 
 
 if __name__ == '__main__':
