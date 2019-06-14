@@ -45,10 +45,24 @@ class HostEditor(object):
         self.filename = filename
         self._parse()
 
+    def chk_user_permissions(self):
+        '''
+        Check if current user has sufficient permissions to
+        edit hosts file.
+        Raise an exception if user is invalid
+        '''
+        if not os.access(self.filename, os.W_OK):
+            msg = 'User does not have sufficient permissions, are you super user ?'
+            raise Exception(msg)
+        return
+
     def add(self, ip, *hostnames):
         '''
         Add an entry to hosts file.
         '''
+
+        self.chk_user_permissions()
+
         if not self.entries:
             return
         ret = []
@@ -75,6 +89,7 @@ class HostEditor(object):
         '''
         Delete an entry from hosts file.
         '''
+        self.chk_user_permissions()
         if not is_valid_ip_address(ip):
             raise Exception("Ip %s is not valid." % ip)
         ret = []
@@ -173,7 +188,11 @@ def main():
         'docker': he.output_docker_ip
     }
     f_name = args.get('name')
-    funcs.get(f_name, he.output)(*args.get(f_name))
+    try:
+        funcs.get(f_name, he.output)(*args.get(f_name))
+    except Exception as e:
+        fd = sys.stdout
+        fd.write('ERROR: {} \n'.format(e))
 
 if __name__ == '__main__':
     main()
