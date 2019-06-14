@@ -192,7 +192,10 @@ def main():
     }
     f_name = args.get('name')
     try:
-        funcs.get(f_name, he.output)(*args.get(f_name))
+        if not args.get(f_name):
+            he.output()
+        else:
+            funcs.get(f_name)(*args.get(f_name))
     except Exception as e:
         fd = sys.stdout
         fd.write('ERROR: {} \n'.format(e))
