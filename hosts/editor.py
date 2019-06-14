@@ -118,6 +118,7 @@ class HostEditor(object):
         if fd is None:
             fd = sys.stdout
         fd.write('\n'.join(map(lambda x: x[0].strip(), self.entries)))
+        fd.write('\n')
 
     def write(self):
         fd = open(self.filename, 'w')
