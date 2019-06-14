@@ -62,6 +62,8 @@ class HostEditor(object):
         '''
 
         self.chk_user_permissions()
+        if not is_valid_ip_address(ip):
+            raise Exception("IP %s is not valid." % ip)
 
         if not self.entries:
             return
@@ -91,7 +93,7 @@ class HostEditor(object):
         '''
         self.chk_user_permissions()
         if not is_valid_ip_address(ip):
-            raise Exception("Ip %s is not valid." % ip)
+            raise Exception("IP %s is not valid." % ip)
         ret = []
         for (line, parts, comment) in self.entries:
             if parts and parts[0] == ip:
