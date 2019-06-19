@@ -136,6 +136,7 @@ class HostEditor(object):
             ip = ret[0]['NetworkSettings']['IPAddress']
             sys.stdout.write(ip)
 
+
 def parse_cmdline():
     '''
     Parse cmd line arguments and returns a dictionary
@@ -158,13 +159,13 @@ def parse_cmdline():
     for do in del_opts:
         del_parser = subparsers.add_parser(
             name=do,
-            help='Delete entry IP ADDRESS'
+            help='Delete an IPADDRESS HOSTNAME entry'
         )
         del_parser.add_argument(do, nargs=2)
 
     docker_parser = subparsers.add_parser(
         name='docker',
-        help='Show docker cointainer IP address'
+        help='Show docker cointainer IP address of the given name'
     )
     docker_parser.add_argument(
         'docker',
@@ -181,6 +182,7 @@ def parse_cmdline():
         dparser['name'] = 'del'
         dparser['del'] = dparser.get(name)
     return dparser
+
 
 def main():
     args = parse_cmdline()
