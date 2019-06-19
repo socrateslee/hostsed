@@ -45,10 +45,26 @@ class HostEditor(object):
         self.filename = filename
         self._parse()
 
+    def chk_user_permissions(self):
+        '''
+        Check if current user has sufficient permissions to
+        edit hosts file.
+        Raise an exception if user is invalid
+        '''
+        if not os.access(self.filename, os.W_OK):
+            msg = 'User does not have sufficient permissions, are you super user ?'
+            raise Exception(msg)
+        return
+
     def add(self, ip, *hostnames):
         '''
         Add an entry to hosts file.
         '''
+
+        self.chk_user_permissions()
+        if not is_valid_ip_address(ip):
+            raise Exception("IP %s is not valid." % ip)
+
         if not self.entries:
             return
         ret = []
@@ -68,13 +84,16 @@ class HostEditor(object):
             line = '\t'.join(parts)
             ret.append((line, parts, comment))
         self.entries = ret
+        self.write()
+        self.output()
 
     def delete(self, ip, hostname):
         '''
         Delete an entry from hosts file.
         '''
+        self.chk_user_permissions()
         if not is_valid_ip_address(ip):
-            raise Exception("Ip %s is not valid." % ip)
+            raise Exception("IP %s is not valid." % ip)
         ret = []
         for (line, parts, comment) in self.entries:
             if parts and parts[0] == ip:
@@ -84,6 +103,8 @@ class HostEditor(object):
                 line = ' '.join(['\t'.join(parts), comment])
             ret.append((line, parts, comment))
         self.entries = ret
+        self.write()
+        self.output()
 
     def _parse(self):
         '''
@@ -97,6 +118,7 @@ class HostEditor(object):
         if fd is None:
             fd = sys.stdout
         fd.write('\n'.join(map(lambda x: x[0].strip(), self.entries)))
+        fd.write('\n')
 
     def write(self):
         fd = open(self.filename, 'w')
@@ -114,23 +136,69 @@ class HostEditor(object):
             ip = ret[0]['NetworkSettings']['IPAddress']
             sys.stdout.write(ip)
 
+def parse_cmdline():
+    '''
+    Parse cmd line arguments and returns a dictionary
+    with its parsed values
+    '''
+    parser = argparse.ArgumentParser(
+        prog='hostsed',
+        description='A hosts file editing tool for command line shell')
+
+    subparsers = parser.add_subparsers(dest='name')
+
+    add_parser = subparsers.add_parser(
+        name='add',
+        help='Add entry IPADDRESS HOSTNAME1 [HOSTNAME2 ...]'
+    )
+    add_parser.add_argument('add', type=str, nargs='+')
+
+    # subparser does not support aliasing
+    del_opts = ['del', 'rm', 'delete', 'remove']
+    for do in del_opts:
+        del_parser = subparsers.add_parser(
+            name=do,
+            help='Delete entry IP ADDRESS'
+        )
+        del_parser.add_argument(do, nargs=2)
+
+    docker_parser = subparsers.add_parser(
+        name='docker',
+        help='Show docker cointainer IP address'
+    )
+    docker_parser.add_argument(
+        'docker',
+        help='Name of the Container to get IP address from',
+        metavar='CONTAINER',
+        type=str,
+        nargs=1
+    )
+    dparser = vars(parser.parse_args())
+
+    # normalize keys for del and its aliases:
+    name = dparser.get('name')
+    if name in del_opts:
+        dparser['name'] = 'del'
+        dparser['del'] = dparser.get(name)
+    return dparser
 
 def main():
+    args = parse_cmdline()
     he = HostEditor()
-    if len(sys.argv) >= 4 and sys.argv[1] == 'add':
-        he.add(sys.argv[2], *sys.argv[3:])
-        he.write()
-        he.output()
-    elif len(sys.argv) == 4 and sys.argv[1] in ('rm', 'remove',
-                                                'del', 'delete'):
-        he.delete(sys.argv[2], sys.argv[3])
-        he.write()
-        he.output()
-    elif len(sys.argv) == 3 and sys.argv[1] == 'docker':
-        he.output_docker_ip(sys.argv[2])
-    else:
-        he.output()
-
+    funcs = {
+        'add': he.add,
+        'del': he.delete,
+        'docker': he.output_docker_ip
+    }
+    f_name = args.get('name')
+    try:
+        if not args.get(f_name):
+            he.output()
+        else:
+            funcs.get(f_name)(*args.get(f_name))
+    except Exception as e:
+        fd = sys.stdout
+        fd.write('ERROR: {} \n'.format(e))
 
 if __name__ == '__main__':
     main()
