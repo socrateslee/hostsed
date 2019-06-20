@@ -174,6 +174,11 @@ def parse_cmdline():
         type=str,
         nargs=1
     )
+
+    parser.add_argument("-f", "--file",
+                        default="/etc/hosts",
+                        help="The location of hosts file, default /etc/hosts",
+                        type=str)
     dparser = vars(parser.parse_args())
 
     # normalize keys for del and its aliases:
@@ -186,13 +191,13 @@ def parse_cmdline():
 
 def main():
     args = parse_cmdline()
-    he = HostEditor()
+    f_name = args.get('name')
+    he = HostEditor(filename=args.get('file'))
     funcs = {
         'add': he.add,
         'del': he.delete,
         'docker': he.output_docker_ip
     }
-    f_name = args.get('name')
     try:
         if not args.get(f_name):
             he.output()
