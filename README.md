@@ -41,7 +41,7 @@ rm/delete/remove are all alias for del:
 Example:
 
     sudo hostsed remove 192.168.1.1 gateway
-    hostsed --file rm ::1 localhost
+    hostsed --file hosts.exmaple rm ::1 localhost
 
 ### Get the ip address of a docker container
 
