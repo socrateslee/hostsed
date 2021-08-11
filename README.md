@@ -43,6 +43,16 @@ Example:
     sudo hostsed remove 192.168.1.1 gateway
     hostsed --file hosts.exmaple rm ::1 localhost
 
+### Drop lines with specified ip or hostname
+
+    sudo hostsed drop <ip or hostname>
+
+Example:
+
+    sudo hostsed drop 192.168.1.1
+    sudo hostsed drop www.example.com
+    hostsed --file hosts.exmaple drop ::1
+
 ### Get the ip address of a docker container
 
     sudo hostsed docker <docker-container-name>
