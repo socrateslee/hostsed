@@ -38,7 +38,7 @@ def parse_line(line):
         return (line, parts, comment)
     else:
         return (line, None, comment)
-        
+
 
 class HostEditor(object):
     def __init__(self, filename='/etc/hosts'):
@@ -51,8 +51,8 @@ class HostEditor(object):
         edit hosts file.
         Raise an exception if user is invalid
         '''
-        if not os.access(self.filename, os.W_OK):
-            msg = 'User does not have sufficient permissions, are you super user ?'
+        if self.filename != '-' and not os.access(self.filename, os.W_OK):
+            msg = 'User does not have sufficient permissions, are you super user?'
             raise Exception(msg)
         return
 
@@ -87,9 +87,23 @@ class HostEditor(object):
         self.write()
         self.output()
 
+    def drop(self, ip_or_hostname):
+        '''
+        Drop lines with specified ip or hostname from hosts file.
+        '''
+        self.chk_user_permissions()
+        ret = []
+        for (line, parts, comment) in self.entries:
+            if parts and ip_or_hostname in parts:
+                continue
+            ret.append((line, parts, comment))
+        self.entries = ret
+        self.write()
+        self.output()
+
     def delete(self, ip, hostname):
         '''
-        Delete an entry from hosts file.
+        Delete host from the lines with (ip, hostname) tuple from hosts file.
         '''
         self.chk_user_permissions()
         if not is_valid_ip_address(ip):
@@ -111,7 +125,8 @@ class HostEditor(object):
         Parse the files into entries.
         '''
         self.entries = []
-        for line in open(self.filename).readlines():
+        fd = sys.stdin if self.filename == '-' else open(self.filename)
+        for line in fd.readlines():
             self.entries.append(parse_line(line))
 
     def output(self, fd=None):
@@ -121,9 +136,10 @@ class HostEditor(object):
         fd.write('\n')
 
     def write(self):
-        fd = open(self.filename, 'w')
-        self.output(fd=fd)
-        fd.close()
+        if self.filename != '-':
+            fd = open(self.filename, 'w')
+            self.output(fd=fd)
+            fd.close()
 
     def output_docker_ip(self, container):
         proc = subprocess.Popen("docker inspect %s" % container,
@@ -152,16 +168,25 @@ def parse_cmdline():
         name='add',
         help='Add entry IPADDRESS HOSTNAME1 [HOSTNAME2 ...]'
     )
-    add_parser.add_argument('add', type=str, nargs='+')
+    add_parser.add_argument('add',
+                            type=str,
+                            metavar='IPADDRESS_OR_HOSTNAME',
+                            nargs='+')
 
     # subparser does not support aliasing
     del_opts = ['del', 'rm', 'delete', 'remove']
     for do in del_opts:
         del_parser = subparsers.add_parser(
             name=do,
-            help='Delete an IPADDRESS HOSTNAME entry'
+            help='Delete an IPADDRESS HOSTNAME entry',
         )
-        del_parser.add_argument(do, nargs=2)
+        del_parser.add_argument(do, nargs=2, metavar='IPADDRESS_OR_HOSTNAME',)
+
+    drop_parser = subparsers.add_parser(
+        name='drop',
+        help='Drop a lines containing an IP_OR_HOSTNAME entry'
+    )
+    drop_parser.add_argument('drop', nargs=1, metavar='IPADDRESS_OR_HOSTNAME')
 
     docker_parser = subparsers.add_parser(
         name='docker',
@@ -196,6 +221,7 @@ def main():
     funcs = {
         'add': he.add,
         'del': he.delete,
+        'drop': he.drop,
         'docker': he.output_docker_ip
     }
     try:
