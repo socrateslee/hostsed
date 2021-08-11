@@ -10,7 +10,7 @@ except:
 
 sdict = {
     'name': 'hostsed',
-    'version': "0.3.0",
+    'version': "0.4.0",
     'packages': ['hosts'],
     'zip_safe': False,
     'author': 'lichun',
