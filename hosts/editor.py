@@ -202,7 +202,7 @@ def parse_cmdline():
 
     parser.add_argument("-f", "--file",
                         default="/etc/hosts",
-                        help="The location of hosts file, default /etc/hosts",
+                        help="The location of hosts file, default /etc/hosts, - for reading from stdin",
                         type=str)
     dparser = vars(parser.parse_args())
 
