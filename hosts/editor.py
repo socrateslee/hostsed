@@ -174,13 +174,13 @@ def parse_cmdline():
                             nargs='+')
 
     # subparser does not support aliasing
-    del_opts = ['del', 'rm', 'delete', 'remove']
-    for do in del_opts:
-        del_parser = subparsers.add_parser(
-            name=do,
-            help='Delete an IPADDRESS HOSTNAME entry',
-        )
-        del_parser.add_argument(do, nargs=2, metavar='IPADDRESS_OR_HOSTNAME',)
+    del_aliases = ['rm', 'delete', 'remove']
+    del_parser = subparsers.add_parser(
+        name='del',
+        help='Delete an IPADDRESS HOSTNAME entry',
+        aliases=del_aliases
+    )
+    del_parser.add_argument('del', nargs=2, metavar='IPADDRESS_OR_HOSTNAME',)
 
     drop_parser = subparsers.add_parser(
         name='drop',
@@ -204,14 +204,11 @@ def parse_cmdline():
                         default="/etc/hosts",
                         help="The location of hosts file, default /etc/hosts, - for reading from stdin",
                         type=str)
-    dparser = vars(parser.parse_args())
 
-    # normalize keys for del and its aliases:
-    name = dparser.get('name')
-    if name in del_opts:
-        dparser['name'] = 'del'
-        dparser['del'] = dparser.get(name)
-    return dparser
+    args = vars(parser.parse_args())
+    if args.get('name') in del_aliases:
+        args['name'] = 'del'
+    return args
 
 
 def main():
