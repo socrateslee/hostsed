@@ -1,0 +1,25 @@
+[project]
+name = "hostsed"
+version = "0.4.0"
+authors = [
+    {name = "lichun"}
+]
+description = "A hosts file editing tool for command line shell."
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python"
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/socrateslee/hostsed"
+
+[project.scripts]
+hostsed = "hostsed.editor:main"
+
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
