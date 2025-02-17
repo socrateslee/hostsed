@@ -190,7 +190,7 @@ def parse_cmdline():
 
     docker_parser = subparsers.add_parser(
         name='docker',
-        help='Show docker cointainer IP address of the given name'
+        help='Show docker container IP address of the given name'
     )
     docker_parser.add_argument(
         'docker',
