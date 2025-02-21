@@ -10,58 +10,85 @@ import socket
 import argparse
 
 
+def get_default_host_location():
+    '''
+    Get the default location of hosts file.
+    '''
+    if sys.platform == 'win32':
+        return 'C:\\Windows\\System32\\drivers\\etc\\hosts'
+    else:
+        return '/etc/hosts'
+
+
+def get_file_content(filename):
+    '''
+    Get the content of a file.
+    '''
+    if filename == '-':
+        return sys.stdin.read()
+    else:
+        with open(filename, 'r') as f:
+            return f.read()
+
+
+def get_output_fd(filename):
+    '''
+    Get the output file descriptor of a file.
+    '''
+    if filename == '-':
+        return sys.stdout
+    else:
+        fd = open(filename, 'w')
+        return fd
+
+
 def is_valid_ip_address(ip):
     '''
     Check whether an ip address is valid, both for ipv4
     and ipv6.
     '''
     try:
-        socket.inet_pton(socket.AF_INET, ip)
+        socket.inet_pton(socket.AF_INET, ip) # IPv4 check
         return True
     except socket.error:
-        pass
-
-    try:
-        socket.inet_pton(socket.AF_INET6, ip)
-        return True
-    except socket.error:
-        pass
-    return False
+        try:
+            socket.inet_pton(socket.AF_INET6, ip) # IPv6 check
+            return True
+        except socket.error:
+            return False
 
 
 def parse_line(line):
-    pos = line.find("#")
-    new_line = line[:pos].strip() if pos != -1 else line.strip()
-    comment = line[pos:] if pos != -1 else ''
-    if new_line:
-        parts = list(map(lambda x: x.strip(), new_line.split()))
+    parts_combine, sep, comment = line.partition('#')
+    comment = sep + comment
+    parts = list(map(lambda x: x.strip(), parts_combine.split()))
+    if parts:
         return (line, parts, comment)
     else:
         return (line, None, comment)
 
 
-class HostEditor(object):
-    def __init__(self, filename='/etc/hosts'):
-        self.filename = filename
-        self._parse()
+def chk_user_permissions(filename):
+    '''
+    Check if current user has sufficient permissions to
+    edit hosts file.
+    Raise an exception if user is invalid
+    '''
+    if filename != '-' and not os.access(self.filename, os.W_OK):
+        msg = 'User does not have sufficient permissions, are you super user?'
+        raise Exception(msg)
+    return
 
-    def chk_user_permissions(self):
-        '''
-        Check if current user has sufficient permissions to
-        edit hosts file.
-        Raise an exception if user is invalid
-        '''
-        if self.filename != '-' and not os.access(self.filename, os.W_OK):
-            msg = 'User does not have sufficient permissions, are you super user?'
-            raise Exception(msg)
-        return
+
+class HostEditor(object):
+    def __init__(self, content):
+        self.content = content
+        self._parse()
 
     def add(self, ip, *hostnames):
         '''
         Add an entry to hosts file.
         '''
-
-        self.chk_user_permissions()
         if not is_valid_ip_address(ip):
             raise Exception("IP %s is not valid." % ip)
 
@@ -84,28 +111,22 @@ class HostEditor(object):
             line = '\t'.join(parts)
             ret.append((line, parts, comment))
         self.entries = ret
-        self.write()
-        self.output()
 
     def drop(self, ip_or_hostname):
         '''
         Drop lines with specified ip or hostname from hosts file.
         '''
-        self.chk_user_permissions()
         ret = []
         for (line, parts, comment) in self.entries:
             if parts and ip_or_hostname in parts:
                 continue
             ret.append((line, parts, comment))
         self.entries = ret
-        self.write()
-        self.output()
 
     def delete(self, ip, hostname):
         '''
         Delete host from the lines with (ip, hostname) tuple from hosts file.
         '''
-        self.chk_user_permissions()
         if not is_valid_ip_address(ip):
             raise Exception("IP %s is not valid." % ip)
         ret = []
@@ -117,40 +138,42 @@ class HostEditor(object):
                 line = ' '.join(['\t'.join(parts), comment])
             ret.append((line, parts, comment))
         self.entries = ret
-        self.write()
-        self.output()
 
     def _parse(self):
         '''
         Parse the files into entries.
         '''
         self.entries = []
-        fd = sys.stdin if self.filename == '-' else open(self.filename)
-        for line in fd.readlines():
+        for line in self.content.splitlines():
             self.entries.append(parse_line(line))
+
+    def render(self):
+        '''
+        Render the entries into a string.
+        '''
+        sep = os.linesep
+        return sep.join(map(lambda x: x[0].strip(), self.entries))
 
     def output(self, fd=None):
         if fd is None:
             fd = sys.stdout
-        fd.write('\n'.join(map(lambda x: x[0].strip(), self.entries)))
-        fd.write('\n')
+        fd.write(self.render())
+        fd.write(os.linesep)
 
-    def write(self):
-        if self.filename != '-':
-            fd = open(self.filename, 'w')
-            self.output(fd=fd)
-            fd.close()
 
-    def output_docker_ip(self, container):
-        proc = subprocess.Popen("docker inspect %s" % container,
-                                shell=True,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        stdout, stderr = proc.communicate()
-        if proc.returncode == 0:
-            ret = json.loads(stdout.decode('utf-8'))
-            ip = ret[0]['NetworkSettings']['IPAddress']
-            sys.stdout.write(ip)
+def docker_ip(container):
+    '''
+    Get the ip address of a docker container.
+    '''
+    proc = subprocess.Popen("docker inspect %s" % container,
+                            shell=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    if proc.returncode == 0:
+        ret = json.loads(stdout.decode('utf-8'))
+        ip = ret[0]['NetworkSettings']['IPAddress']
+        return ip
 
 
 def parse_cmdline():
@@ -211,24 +234,58 @@ def parse_cmdline():
     return args
 
 
+def should_check_permissions(filename):
+    '''
+    Check whether the user has permissions to edit the file.
+    '''
+    if os.path.exists(filename):
+        return os.access(filename, os.W_OK)
+    else:
+        return False
+
+HOSTS_FUNCS = [
+    'add',
+    'del',
+    'drop',
+]
+
+DOCKER_FUNCS = [
+    'docker',
+]
+
+FUNCS = {
+    'add': HostEditor.add,
+    'del': HostEditor.delete,
+    'drop': HostEditor.drop,
+    'docker': docker_ip
+}
+
 def main():
     args = parse_cmdline()
-    f_name = args.get('name')
-    he = HostEditor(filename=args.get('file'))
-    funcs = {
-        'add': he.add,
-        'del': he.delete,
-        'drop': he.drop,
-        'docker': he.output_docker_ip
-    }
+    func_name = args.get('name')
     try:
-        if not args.get(f_name):
+        if func_name in DOCKER_FUNCS:
+            func = FUNCS.get(func_name)
+            print(func(*args.get(func_name)))
+        elif func_name in HOSTS_FUNCS:
+            func = FUNCS.get(func_name)
+            filename = args.get('file') or get_default_host_location()
+            content = get_file_content(filename)
+            he = HostEditor(content)
+            func(he, *args.get(func_name))
+            with get_output_fd(filename) as fd:
+                he.output(fd)
+        elif not func_name:
+            filename = args.get('file') or get_default_host_location()
+            content = get_file_content(filename)
+            he = HostEditor(content)
             he.output()
         else:
-            funcs.get(f_name)(*args.get(f_name))
+            raise Exception("Invalid function name: %s" % func_name)
     except Exception as e:
-        fd = sys.stdout
+        fd = sys.stderr
         fd.write('ERROR: {} \n'.format(e))
+
 
 if __name__ == '__main__':
     main()
