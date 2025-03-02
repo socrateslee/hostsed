@@ -1,6 +1,6 @@
 [project]
 name = "hostsed"
-version = "0.4.0"
+version = "0.5.0"
 authors = [
     {name = "lichun"}
 ]
@@ -21,8 +21,5 @@ Homepage = "https://github.com/socrateslee/hostsed"
 hostsed = "hostsed.editor:main"
 
 [build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["hostsed"]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
