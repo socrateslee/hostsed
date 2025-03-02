@@ -5,16 +5,19 @@ as /etc/hosts.
 import os
 import sys
 import json
+import copy
 import subprocess
 import socket
 import argparse
 
 
-def get_default_host_location():
+def get_default_host_location(platform=None):
     '''
     Get the default location of hosts file.
     '''
-    if sys.platform == 'win32':
+    if not platform:
+        platform = sys.platform
+    if platform == 'win32':
         return 'C:\\Windows\\System32\\drivers\\etc\\hosts'
     else:
         return '/etc/hosts'
@@ -31,11 +34,11 @@ def get_file_content(filename):
             return f.read()
 
 
-def get_output_fd(filename):
+def get_output_fd(filename, dryrun=False):
     '''
     Get the output file descriptor of a file.
     '''
-    if filename == '-':
+    if filename == '-' or dryrun:
         return sys.stdout
     else:
         fd = open(filename, 'w')
@@ -81,11 +84,13 @@ def chk_user_permissions(filename):
 
 
 class HostEditor(object):
-    def __init__(self, content):
+    def __init__(self, content, platform=None):
+        if not platform:
+            self.platform = sys.platform
         self.content = content
         self._parse()
 
-    def add(self, ip, *hostnames):
+    def add(self, ip, *hostnames, platform=None):
         '''
         Add an entry to hosts file.
         '''
@@ -98,18 +103,34 @@ class HostEditor(object):
         added = False
         if not self.entries:
             return
-        for (line, parts, comment) in self.entries:
-            if parts and parts[0] == ip and not added:
-                for hostname in hostnames:
-                    if hostname not in parts[1:]:
-                        parts.append(hostname)
-                line = ' '.join(['\t'.join(parts), comment])
-                added = True
-            ret.append((line, parts, comment))
-        if not added:
-            parts = [ip] + list(hostnames)
-            line = '\t'.join(parts)
-            ret.append((line, parts, comment))
+
+        if self.platform != 'win32':
+            for (line, parts, comment) in self.entries:
+                if parts and parts[0] == ip and not added:
+                    for hostname in hostnames:
+                        if hostname not in parts[1:]:
+                            parts.append(hostname)
+                    line = ' '.join(['\t'.join(parts), comment])
+                    added = True
+                ret.append((line, parts, comment))
+            if not added:
+                parts = [ip] + list(hostnames)
+                line = '\t'.join(parts)
+                ret.append((line, parts, comment))
+        else:
+            curr_hostnames = copy.copy(hostnames)
+            for (line, parts, comment) in self.entries:
+                if parts and parts[0] == ip and not added:
+                    curr_hostnames = [
+                        hostname for hostname in curr_hostnames
+                        if hostname not in parts[1:]
+                    ]
+                ret.append((line, parts, comment))
+            if curr_hostnames:
+                for hostname in curr_hostnames:
+                    parts = [ip, hostname]
+                    line = '\t'.join(parts)
+                    ret.append((line, parts, ''))
         self.entries = ret
 
     def drop(self, ip_or_hostname):
@@ -224,9 +245,19 @@ def parse_cmdline():
     )
 
     parser.add_argument("-f", "--file",
-                        default="/etc/hosts",
+                        default="",
                         help="The location of hosts file, default /etc/hosts, - for reading from stdin",
                         type=str)
+
+    parser.add_argument("--platform",
+                        default="",
+                        help="The platform to use, 'win32' for Windows, default is the current platform.",
+                        type=str)
+
+    parser.add_argument("--dryrun",
+                        default=False,
+                        action='store_true',
+                        help="Print the result of the operation without modifying the hosts file.")
 
     args = vars(parser.parse_args())
     if args.get('name') in del_aliases:
@@ -269,16 +300,16 @@ def main():
             print(func(*args.get(func_name)))
         elif func_name in HOSTS_FUNCS:
             func = FUNCS.get(func_name)
-            filename = args.get('file') or get_default_host_location()
+            filename = args.get('file') or get_default_host_location(platform=args.get('platform'))
             content = get_file_content(filename)
-            he = HostEditor(content)
+            he = HostEditor(content, platform=args.get('platform'))
             func(he, *args.get(func_name))
-            with get_output_fd(filename) as fd:
+            with get_output_fd(filename, dryrun=args.get('dryrun')) as fd:
                 he.output(fd)
         elif not func_name:
-            filename = args.get('file') or get_default_host_location()
+            filename = args.get('file') or get_default_host_location(platform=args.get('platform'))
             content = get_file_content(filename)
-            he = HostEditor(content)
+            he = HostEditor(content, platform=args.get('platform'))
             he.output()
         else:
             raise Exception("Invalid function name: %s" % func_name)
