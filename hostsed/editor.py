@@ -144,19 +144,32 @@ class HostEditor(object):
             ret.append((line, parts, comment))
         self.entries = ret
 
-    def delete(self, ip, hostname):
+    def delete(self, *args):
         '''
         Delete host from the lines with (ip, hostname) tuple from hosts file.
+        If ip is None, match only hostname and delete matched entry
         '''
-        if not is_valid_ip_address(ip):
-            raise Exception("IP %s is not valid." % ip)
+        if len(args) == 2:
+            ip, hostname = args
+        elif len(args) == 1:
+            ip = None
+            hostname = args[0]
+        else:
+            raise Exception("Invalid arguments")
         ret = []
         for (line, parts, comment) in self.entries:
-            if parts and parts[0] == ip:
-                parts = list(filter(lambda x: x != hostname, parts))
-                if not parts[1:]:
-                    continue
-                line = ' '.join(['\t'.join(parts), comment])
+            if parts:
+                if ip is None:
+                    if hostname in parts[1:]: # Check if hostname is in hostnames (parts[1:])
+                        parts = list(filter(lambda x: x != hostname, parts))
+                        if not parts[1:]: # if no hostnames left, remove the whole line
+                            continue
+                        line = ' '.join(['\t'.join(parts), comment])
+                elif parts[0] == ip: # if ip is not None, check ip and hostname
+                    parts = list(filter(lambda x: x != hostname, parts))
+                    if not parts[1:]:
+                        continue
+                    line = ' '.join(['\t'.join(parts), comment])
             ret.append((line, parts, comment))
         self.entries = ret
 
@@ -197,6 +210,24 @@ def docker_ip(container):
         return ip
 
 
+class OneOrTwo(argparse.Action):
+    '''
+    Action to parse one or two arguments.
+    '''
+    def __init__(self, option_strings, dest, **kwargs):
+        super().__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, nargs=None):
+        if 1 <= len(values) <= 2:
+            setattr(namespace, self.dest, values)
+        else:
+            raise ValueError(
+                'argument %s: expected 1 or 2 values' % self.dest)
+
+    def format_usage(self):
+        return 'IPADDRESS HOSTNAME\nHOSTNAME'
+
+
 def parse_cmdline():
     '''
     Parse cmd line arguments and returns a dictionary
@@ -221,10 +252,14 @@ def parse_cmdline():
     del_aliases = ['rm', 'delete', 'remove']
     del_parser = subparsers.add_parser(
         name='del',
-        help='Delete an IPADDRESS HOSTNAME entry',
+        help='Delete an (IPADDRESS, HOSTNAME) pair or a HOSTNAME occurence',
         aliases=del_aliases
     )
-    del_parser.add_argument('del', nargs=2, metavar='IPADDRESS_OR_HOSTNAME',)
+    del_parser.add_argument('del',
+        nargs='+',
+        metavar='(IPADDRESS HOSTNAME)|HOSTNAME',
+        action=OneOrTwo,
+        help='Delete either:\n- A specific (IPADDRESS, HOSTNAME) pair\n- All entries containing HOSTNAME')
 
     drop_parser = subparsers.add_parser(
         name='drop',
